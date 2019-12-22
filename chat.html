@@ -1,0 +1,194 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <head>
+        <script>
+            window.YTD = {
+                direct_message: {},
+            };
+        </script>
+        <script src="https://twemoji.maxcdn.com/twemoji.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.15/lodash.min.js"></script>
+        <script src="archive/direct-message.js"></script>
+
+        <style>
+            body {
+                margin: 0;
+                padding: 0;
+                font-size: 16px;
+                background: rgb(35,35,35);
+            }
+            #app {
+                display: flex;
+                flex-direction: column;
+                flex: 1;
+                height: 100vh;
+            }
+
+            #nav {
+                display: block;
+                padding: 10px;
+                box-shadow: 0px -8px 10px 8px rgba(0,0,0,.5);
+                text-align: center;
+                font-weight: bold;
+                font-family: monospace;
+                font-size: .9em;
+                color: #aaa;
+            }
+
+            #messages {
+                flex: 1;
+                padding: 10px;
+                box-sizing: border-box;
+                max-width: 800px;
+                widtH: 100%;
+                align-self: center;
+            }
+
+            #messages .message {
+                display: flex;
+                flex-direction: column;
+                margin-bottom: 1.5em;
+            }
+            #messages .header {
+                display: block;
+                font-weight: bold;
+                font-family: monospace;
+                font-size: .9em;
+                color: #aaa;
+                margin-bottom: .5em;
+            }
+            #messages .text {
+                display: block;
+                font-family: sans-serif;
+                max-width: 60%;
+                color: #fff;
+                border-radius: .8em;
+                padding: .8em;
+                background: #353535;
+            }
+            #messages .media {
+                display: block;
+            }
+            #messages .emoji {
+                height: 1em;
+                margin-right: .2em;
+                vertical-align: baseline;
+            }
+            #messages .me {
+                align-items: flex-end;
+            }
+            #messages :not(.me) .text {
+                border-bottom-left-radius: 0;
+            }
+            #messages .me .text {
+                background: #33a2ff;
+                border-bottom-right-radius: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app">
+            <div id="nav">
+                <label>
+                    Conversation
+                    <select v-model="who">
+                        <option v-for="conversationId in conversations" v-bind:value="conversationId">
+                            {{conversationId.replace(me, '').replace('-', '').trim()}}
+                        </option>
+                    </select>                
+                </label>
+                <label>
+                    Day
+                    <select v-model="day">
+                        <option v-for="d in days">{{d}}</option>
+                    </select>
+                </label>
+            </div>
+            <div id="messages">
+                <div class="message" v-for="message in messages" v-bind:class="{ me: message.senderId === me }">
+                    <span class="header">{{message.senderId}} - {{message.createdAt}}</span>
+                    <span class="text" v-html="message.text"></span>
+                    <img class="media" v-bind:src="image.url" height="400" v-for="image in message.mediaUrls"/>
+                </div>
+            </div>
+        </div>
+        <script>
+            new Vue({
+                el: '#app',
+                data() {
+                    const conversations = _.uniq(window.YTD.direct_message.part0.reduce((ids, conversation) => {
+                        ids.push(conversation.dmConversation.conversationId);
+                        return ids;
+                    }, []));
+                    const [,me] = _.reduce(
+                        _.chain(conversations)
+                        .map((id, idx) => id.split('-'))
+                        .flatten()
+                        .countBy()
+                        .value(),
+                        ([max, _id], val, id) => max < val ? [val, id] : [max, _id],
+                        [0, null],
+                    );
+                    console.log(me);
+                    return {
+                        conversations,
+                        me,
+                        who: null,
+                        day: null,
+                    }
+                },
+                computed: {
+                    conversation: function() {
+                        return _.flatten(
+                            _.filter(window.YTD.direct_message.part0, ['dmConversation.conversationId', this.who])
+                             .map(({ dmConversation }) => dmConversation.messages)
+                        );
+                    },
+                    messages: function() {
+                        const day = moment(this.day);
+                        const imgExts = ['jpg', 'jpeg', 'png', 'gif']
+                        return this.conversation.filter((message) => {
+                            return moment(message.messageCreate.createdAt).startOf('day').isSame(day);
+                        }).sort((a, b) => +moment(a.messageCreate.createdAt) - +moment(b.messageCreate.createdAt))
+                        .map((message) => {
+                            const {
+                                senderId,
+                                createdAt,
+                                text,
+                                mediaUrls,
+                                id,
+                            } = message.messageCreate;
+                            const urls = mediaUrls.map(media => {
+                                const url = media.split('/').pop()
+                                const ext = url.split('.').pop()
+                                
+                                return {
+                                    ext,
+                                    url: `archive/direct_message_media/${id}-${url}`
+                                };
+                            }).filter(media => imgExts.includes(media.ext));
+                            return {
+                                senderId,
+                                createdAt,
+                                text: twemoji.parse(text),
+                                mediaUrls: urls,
+                            };
+                        });
+                    },
+                    days: function() {
+                        return _.uniq(this.conversation.map((message) => {
+                            const {
+                                messageCreate,
+                            } = message;
+                            const { createdAt } = messageCreate;
+                            return moment(createdAt).startOf('day').format();
+                        })).sort((a, b) => +a - +b);
+                    }
+                }
+            })
+        </script>
+    </body>
+</html>
