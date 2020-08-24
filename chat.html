@@ -18,24 +18,43 @@
                 margin: 0;
                 padding: 0;
                 font-size: 16px;
-                background: rgb(35,35,35);
+                background: rgb(21, 32, 43);
+                width: 100vw;
+                height: 100vh;
             }
             #app {
                 display: flex;
-                flex-direction: column;
+                flex-direction: row;
                 flex: 1;
-                height: 100vh;
+                height: 100%;
+                max-width: 1334px;
+                margin: auto;
+                height: 100%;
+                border-left: 1px solid rgba(255,255,255,.25);
+                border-right: 1px solid rgba(255,255,255,.25);
             }
 
-            #nav {
-                display: block;
-                padding: 10px;
-                box-shadow: 0px -8px 10px 8px rgba(0,0,0,.5);
+            .nav {
+                flex: .3;
+                padding: 10px 0px;
+                border-right: 1px solid rgba(255,255,255,.25);
                 text-align: center;
                 font-weight: bold;
                 font-family: monospace;
                 font-size: .9em;
                 color: #aaa;
+                overflow-y: auto;
+            }
+
+            .item {
+                border-bottom: 1px solid rgba(255,255,255,.25);
+                text-align: left;
+                margin-top: 1px;
+                padding: 2em .5em;
+            }
+
+            .item:hover {
+                background: rgba(125,200,255,.15);
             }
 
             #messages {
@@ -45,6 +64,7 @@
                 max-width: 800px;
                 widtH: 100%;
                 align-self: center;
+                overflow-y: auto;
             }
 
             #messages .message {
@@ -67,10 +87,11 @@
                 color: #fff;
                 border-radius: .8em;
                 padding: .8em;
-                background: #353535;
+                background: rgb(61, 84, 102);
             }
             #messages .media {
                 display: block;
+                align-self: flex-start;
             }
             #messages .emoji {
                 height: 1em;
@@ -87,31 +108,42 @@
                 background: #33a2ff;
                 border-bottom-right-radius: 0;
             }
+            #messages .me .media {
+                align-self: flex-end;
+            }
+
+            #content {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+            }
         </style>
     </head>
     <body>
         <div id="app">
-            <div id="nav">
+            <div class="nav">
                 <label>
                     Conversation
-                    <select v-model="who">
-                        <option v-for="conversationId in conversations" v-bind:value="conversationId">
-                            {{conversationId.replace(me, '').replace('-', '').trim()}}
-                        </option>
-                    </select>                
-                </label>
-                <label>
-                    Day
-                    <select v-model="day">
-                        <option v-for="d in days">{{d}}</option>
-                    </select>
+                    <div class="item" v-on:click="changeConversation(conversationId)" v-for="conversationId in conversations">
+                        {{conversationId.replace(me, '').replace('-', '').trim()}}
+                    </div>
                 </label>
             </div>
-            <div id="messages">
-                <div class="message" v-for="message in messages" v-bind:class="{ me: message.senderId === me }">
-                    <span class="header">{{message.senderId}} - {{message.createdAt}}</span>
-                    <span class="text" v-html="message.text"></span>
-                    <img class="media" v-bind:src="image.url" height="400" v-for="image in message.mediaUrls"/>
+            <div class="nav" v-if="who">
+                <label>
+                    Day
+                </label>
+                <div class="item" v-for="d in days" v-on:click="changeDay(d)">
+                    {{d}}
+                </div>  
+            </div>
+            <div id="content">
+                <div id="messages">    
+                    <div class="message" v-for="message in messages" v-bind:class="{ me: message.senderId === me }">
+                        <span class="header">{{message.senderId}} - {{message.createdAt}}</span>
+                        <span class="text" v-html="message.text"></span>
+                        <img class="media" v-bind:src="image.url" height="400" v-for="image in message.mediaUrls"/>
+                    </div>
                 </div>
             </div>
         </div>
@@ -138,6 +170,14 @@
                         me,
                         who: null,
                         day: null,
+                    }
+                },
+                methods: {
+                    changeConversation(conversationId) {
+                        this.who = conversationId;
+                    },
+                    changeDay(day) {
+                        this.day = day;
                     }
                 },
                 computed: {
@@ -172,7 +212,7 @@
                             }).filter(media => imgExts.includes(media.ext));
                             return {
                                 senderId,
-                                createdAt,
+                                createdAt: moment.utc(createdAt).local(),
                                 text: twemoji.parse(text),
                                 mediaUrls: urls,
                             };
@@ -184,8 +224,8 @@
                                 messageCreate,
                             } = message;
                             const { createdAt } = messageCreate;
-                            return moment(createdAt).startOf('day').format();
-                        })).sort((a, b) => +a - +b);
+                            return +moment(createdAt).startOf('day');
+                        })).sort((a, b) => b - a).map(time => moment(time).format('YYYY/MM/DD'));
                     }
                 }
             })
