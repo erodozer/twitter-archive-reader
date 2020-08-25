@@ -11,7 +11,70 @@
         <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.15/lodash.min.js"></script>
-        <script src="archive/direct-message.js"></script>
+        
+        <style>
+            .sk-cube-grid {
+                width: 40px;
+                height: 40px;
+                margin: 100px auto;
+                }
+
+                .sk-cube-grid .sk-cube {
+                width: 33%;
+                height: 33%;
+                background-color: #fff;
+                float: left;
+                -webkit-animation: sk-cubeGridScaleDelay 1.3s infinite ease-in-out;
+                        animation: sk-cubeGridScaleDelay 1.3s infinite ease-in-out; 
+                }
+                .sk-cube-grid .sk-cube1 {
+                -webkit-animation-delay: 0.2s;
+                        animation-delay: 0.2s; }
+                .sk-cube-grid .sk-cube2 {
+                -webkit-animation-delay: 0.3s;
+                        animation-delay: 0.3s; }
+                .sk-cube-grid .sk-cube3 {
+                -webkit-animation-delay: 0.4s;
+                        animation-delay: 0.4s; }
+                .sk-cube-grid .sk-cube4 {
+                -webkit-animation-delay: 0.1s;
+                        animation-delay: 0.1s; }
+                .sk-cube-grid .sk-cube5 {
+                -webkit-animation-delay: 0.2s;
+                        animation-delay: 0.2s; }
+                .sk-cube-grid .sk-cube6 {
+                -webkit-animation-delay: 0.3s;
+                        animation-delay: 0.3s; }
+                .sk-cube-grid .sk-cube7 {
+                -webkit-animation-delay: 0s;
+                        animation-delay: 0s; }
+                .sk-cube-grid .sk-cube8 {
+                -webkit-animation-delay: 0.1s;
+                        animation-delay: 0.1s; }
+                .sk-cube-grid .sk-cube9 {
+                -webkit-animation-delay: 0.2s;
+                        animation-delay: 0.2s; }
+
+                @-webkit-keyframes sk-cubeGridScaleDelay {
+                0%, 70%, 100% {
+                    -webkit-transform: scale3D(1, 1, 1);
+                            transform: scale3D(1, 1, 1);
+                } 35% {
+                    -webkit-transform: scale3D(0, 0, 1);
+                            transform: scale3D(0, 0, 1); 
+                }
+                }
+
+                @keyframes sk-cubeGridScaleDelay {
+                0%, 70%, 100% {
+                    -webkit-transform: scale3D(1, 1, 1);
+                            transform: scale3D(1, 1, 1);
+                } 35% {
+                    -webkit-transform: scale3D(0, 0, 1);
+                            transform: scale3D(0, 0, 1);
+                } 
+                }
+        </style>
 
         <style>
             body {
@@ -121,112 +184,195 @@
     </head>
     <body>
         <div id="app">
-            <div class="nav">
-                <label>
-                    Conversation
-                    <div class="item" v-on:click="changeConversation(conversationId)" v-for="conversationId in conversations">
-                        {{conversationId.replace(me, '').replace('-', '').trim()}}
-                    </div>
-                </label>
-            </div>
-            <div class="nav" v-if="who">
-                <label>
-                    Day
-                </label>
-                <div class="item" v-for="d in days" v-on:click="changeDay(d)">
-                    {{d}}
-                </div>  
-            </div>
-            <div id="content">
-                <div id="messages">    
-                    <div class="message" v-for="message in messages" v-bind:class="{ me: message.senderId === me }">
-                        <span class="header">{{message.senderId}} - {{message.createdAt}}</span>
-                        <span class="text" v-html="message.text"></span>
-                        <img class="media" v-bind:src="image.url" height="400" v-for="image in message.mediaUrls"/>
+            <template v-if="loading">
+                <load-spinner></load-spinner>
+            </template>
+            <template v-else>
+                <div class="nav">
+                    <label>
+                        Conversation
+                        <div class="item" v-on:click="changeConversation(c.key)" v-for="c in conversations">
+                            {{c.conversation}}
+                        </div>
+                    </label>
+                </div>
+                <div class="nav" v-if="conversation">
+                    <label>
+                        Day
+                    </label>
+                    <div class="item" v-for="d in days" v-on:click="changeDay(d.key)">
+                        {{d.day}}
+                    </div>  
+                </div>
+                <div id="content">
+                    <div id="messages">    
+                        <div class="message" v-for="message in messages" v-bind:class="{ me: message.senderId === me }">
+                            <span class="header">{{message.senderId}} - {{message.createdAt}}</span>
+                            <span class="text" v-html="message.text"></span>
+                            <img class="media" v-bind:src="image.url" height="400" v-for="image in message.mediaUrls"/>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </template>
         </div>
+
         <script>
-            new Vue({
+            const LoadSpinner = Vue.component('load-spinner', {
+                template: `
+                    <div class="sk-cube-grid">
+                        <div class="sk-cube sk-cube1"></div>
+                        <div class="sk-cube sk-cube2"></div>
+                        <div class="sk-cube sk-cube3"></div>
+                        <div class="sk-cube sk-cube4"></div>
+                        <div class="sk-cube sk-cube5"></div>
+                        <div class="sk-cube sk-cube6"></div>
+                        <div class="sk-cube sk-cube7"></div>
+                        <div class="sk-cube sk-cube8"></div>
+                        <div class="sk-cube sk-cube9"></div>
+                    </div>
+                `
+            });
+
+            const app = new Vue({
                 el: '#app',
                 data() {
-                    const conversations = _.uniq(window.YTD.direct_message.part0.reduce((ids, conversation) => {
-                        ids.push(conversation.dmConversation.conversationId);
-                        return ids;
-                    }, []));
-                    const [,me] = _.reduce(
-                        _.chain(conversations)
-                        .map((id, idx) => id.split('-'))
-                        .flatten()
-                        .countBy()
-                        .value(),
-                        ([max, _id], val, id) => max < val ? [val, id] : [max, _id],
-                        [0, null],
-                    );
-                    console.log(me);
                     return {
-                        conversations,
-                        me,
-                        who: null,
+                        loading: true,
+                        archive: {},
+                        me: null,
+                        conversation: null,
                         day: null,
+                        moment,
                     }
                 },
+                mounted() {
+                    var script = document.createElement("script");
+                    script.onload = () => {
+                        if (!window.YTD.direct_message.part0)
+                            return void (console.error("no archive found"));
+                        console.log('archive loaded');
+                        this.loadArchive();
+                    };
+
+                    script.async = true;
+                    script.defer = true;
+                    script.src = "archive/direct-message.js";
+                    document.getElementsByTagName("head")[0].appendChild(script);
+                },
                 methods: {
+                    loadArchive() {
+                        new Promise((resolve) => {
+                            console.log('partitioning archive');
+                            // partition the data
+                            const archive = window.YTD.direct_message.part0.reduce((acc, {
+                                dmConversation: {
+                                    conversationId,
+                                    messages,
+                                },
+                            }) => {
+                                const {
+                                    [conversationId]: data = {},
+                                } = acc;
+                                // merge data in case somehow conversation archives got split into multiple blobs
+                                acc[conversationId] = {
+                                    ...data,
+                                    ...messages.reduce((conversation, {
+                                        messageCreate: message,
+                                    }) => {
+                                        const {
+                                            createdAt,
+                                        } = message;
+                                        const day = +moment(createdAt).startOf('day');
+                                        
+                                        const {
+                                            [day]: messagesForDay = [],
+                                        } = conversation;
+                                        messagesForDay.push(message);
+                                        conversation[day] = messagesForDay;
+                                        return conversation;
+                                    }, {})
+                                };
+                                return acc;
+                            }, {});
+                            resolve(archive);
+                            console.log('archive processed');
+                        }).then((archive) => {
+                            const [,me] = _.reduce(
+                                _.chain(Object.keys(archive))
+                                    .map((id, idx) => id.split('-'))
+                                    .flatten()
+                                    .countBy()
+                                    .value(),
+                                ([max, _id], val, id) => max < val ? [val, id] : [max, _id],
+                                [0, null],
+                            );
+                            this.me = me;
+                            this.archive = archive;
+                            this.loading = false;
+                        });
+                    },
                     changeConversation(conversationId) {
-                        this.who = conversationId;
+                        this.conversation = conversationId;
+                        this.day = null;
                     },
                     changeDay(day) {
                         this.day = day;
-                    }
+                    },
                 },
                 computed: {
-                    conversation: function() {
-                        return _.flatten(
-                            _.filter(window.YTD.direct_message.part0, ['dmConversation.conversationId', this.who])
-                             .map(({ dmConversation }) => dmConversation.messages)
-                        );
+                    conversations() {
+                        return Object.keys(this.archive).map(conversationId => ({
+                            key: conversationId,
+                            conversation: conversationId.replace(this.me, '').replace('-', '').trim(),
+                        }));
                     },
-                    messages: function() {
-                        const day = moment(this.day);
+                    days() {
+                        if (_.isNil(this.conversation)) {
+                            return [];
+                        }
+                        const days = Object.keys(this.archive[this.conversation]);
+                        return days.sort((a, b) => +b - +a).map(day => ({
+                            key: day,
+                            day: moment(+day).format('YYYY/MM/DD'),
+                        }));
+                    },
+                    messages() {
+                        if (_.isNil(this.conversation) || _.isNil(this.day)) {
+                            return [];
+                        }
                         const imgExts = ['jpg', 'jpeg', 'png', 'gif']
-                        return this.conversation.filter((message) => {
-                            return moment(message.messageCreate.createdAt).startOf('day').isSame(day);
-                        }).sort((a, b) => +moment(a.messageCreate.createdAt) - +moment(b.messageCreate.createdAt))
-                        .map((message) => {
-                            const {
-                                senderId,
-                                createdAt,
-                                text,
-                                mediaUrls,
-                                id,
-                            } = message.messageCreate;
-                            const urls = mediaUrls.map(media => {
-                                const url = media.split('/').pop()
-                                const ext = url.split('.').pop()
-                                
+                        const {
+                            [this.conversation]: {
+                                [+this.day]: messages,
+                            }
+                        } = this.archive;
+                        return messages
+                            .sort((a, b) => +moment(a.createdAt) - +moment(b.createdAt))
+                            .map((message) => {
+                                const {
+                                    senderId,
+                                    createdAt,
+                                    text,
+                                    mediaUrls,
+                                    id,
+                                } = message;
+                                const urls = mediaUrls.map(media => {
+                                    const url = media.split('/').pop()
+                                    const ext = url.split('.').pop()
+                                    
+                                    return {
+                                        ext,
+                                        url: `archive/direct_message_media/${id}-${url}`
+                                    };
+                                }).filter(media => imgExts.includes(media.ext));
                                 return {
-                                    ext,
-                                    url: `archive/direct_message_media/${id}-${url}`
+                                    senderId,
+                                    createdAt: moment.utc(createdAt).local(),
+                                    text: twemoji.parse(text),
+                                    mediaUrls: urls,
                                 };
-                            }).filter(media => imgExts.includes(media.ext));
-                            return {
-                                senderId,
-                                createdAt: moment.utc(createdAt).local(),
-                                text: twemoji.parse(text),
-                                mediaUrls: urls,
-                            };
-                        });
+                            });
                     },
-                    days: function() {
-                        return _.uniq(this.conversation.map((message) => {
-                            const {
-                                messageCreate,
-                            } = message;
-                            const { createdAt } = messageCreate;
-                            return +moment(createdAt).startOf('day');
-                        })).sort((a, b) => b - a).map(time => moment(time).format('YYYY/MM/DD'));
-                    }
                 }
             })
         </script>
